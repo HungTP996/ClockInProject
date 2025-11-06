@@ -1,0 +1,10 @@
+{
+  "users": [
+    {
+      "name": "Admin",
+      "employeeId": "ADMIN",
+      "password": "admin",
+      "role": "admin"
+    }
+  ]
+}

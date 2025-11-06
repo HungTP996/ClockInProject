@@ -1,0 +1,7 @@
+{
+  "name": "ProvisionVN Time Clock App (Jobcan Style)",
+  "description": "A modern, user-friendly time clock application inspired by Jobcan for easy clock-in and clock-out functionality. It helps track work hours with a clean interface and a log of today's activities.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
