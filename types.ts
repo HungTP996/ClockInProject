@@ -26,6 +26,7 @@ export interface UserProfile {
   password: string;
   role: 'admin' | 'user';
   creationDate: string;
+  profilePictureUrl?: string;
 }
 
 export enum IncidentType {

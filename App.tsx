@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Punch, PunchType, Leave, UserProfile, WorkIncident, IncidentType } from './types';
 
 // --- i1n Translations ---
@@ -525,6 +525,7 @@ const ThermometerIcon: React.FC<{ className?: string }> = ({ className }) => (<s
 const DropletIcon: React.FC<{ className?: string }> = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C7.58 0 4 3.58 4 8c0 2.21 1.79 4 4 4 .28 0 .5-.22.5-.5S8.28 11 8 11c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3c0 .28.22.5.5.5s.5-.22.5-.5c0-2.21-1.79-4-4-4zm6 6c0 2.21-1.79 4-4 4-.28 0-.5-.22-.5-.5s.22-.5.5-.5c1.66 0 3-1.34 3-3s-1.34-3-3-3c-.28 0-.5-.22-.5-.5s.22-.5.5-.5c2.21 0 4 1.79 4 4zm-6 8c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z" /></svg>);
 const WindIcon: React.FC<{ className?: string }> = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9.59 4.59A2 2 0 1111 8H2m10.59 11.41A2 2 0 1014 16H2m15.73-8.27A2.5 2.5 0 1119.5 12H2" /></svg>);
 const AwardIcon: React.FC<{ className?: string }> = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 22 12 17 17 22 15.79 13.88"></polyline></svg>);
+const CameraIcon: React.FC<{ className?: string }> = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>);
 
 
 // --- Password Strength Helper ---
@@ -1251,6 +1252,7 @@ const UserProfileComponent: React.FC<{
     isReadOnly?: boolean;
 }> = ({ profile, onProfileChange, t, isReadOnly = false }) => {
     const [localProfile, setLocalProfile] = useState(profile);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setLocalProfile(profile);
@@ -1261,12 +1263,47 @@ const UserProfileComponent: React.FC<{
     };
     const handleBlur = () => { onProfileChange(localProfile); };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const newProfile = { ...localProfile, profilePictureUrl: event.target?.result as string };
+                setLocalProfile(newProfile);
+                onProfileChange(newProfile); // Propagate change immediately
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
+
     return (
         <div className="w-full bg-white rounded-lg p-4 md:p-6 mt-6 border border-slate-200">
             <h3 className="text-lg font-bold text-slate-700 border-b pb-2 mb-4 flex items-center gap-2">
                 <UserIcon className="h-6 w-6 text-slate-500" />
                 {t('userProfileTitle')}
             </h3>
+            <div className="flex justify-center mb-6">
+                <div className="relative">
+                    {localProfile.profilePictureUrl ? (
+                        <img src={localProfile.profilePictureUrl} alt="Profile" className="h-24 w-24 rounded-full object-cover border-4 border-slate-200" />
+                    ) : (
+                        <div className="h-24 w-24 rounded-full bg-slate-200 flex items-center justify-center border-4 border-slate-200">
+                            <UserIcon className="h-12 w-12 text-slate-500" />
+                        </div>
+                    )}
+                    {!isReadOnly && (
+                        <>
+                            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()} 
+                                className="absolute bottom-0 right-0 bg-sky-600 text-white rounded-full p-1.5 hover:bg-sky-700 transition-colors"
+                                aria-label="Upload profile picture"
+                            >
+                                <CameraIcon className="h-4 w-4" />
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
             <div className="space-y-4">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-slate-700">{t('nameLabel')}</label>
@@ -1422,8 +1459,19 @@ const UserManagement: React.FC<{
                         ) : (
                             // Display View
                              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
-                                <p className="font-semibold text-slate-800 col-span-1">{user.name}</p>
-                                <p className="text-sm text-slate-500 font-mono col-span-1">{user.employeeId}</p>
+                                <div className="flex items-center gap-3 col-span-2">
+                                     {user.profilePictureUrl ? (
+                                        <img src={user.profilePictureUrl} alt={user.name} className="h-10 w-10 rounded-full object-cover" />
+                                     ) : (
+                                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                            <UserIcon className="h-6 w-6 text-slate-400" />
+                                        </div>
+                                     )}
+                                     <div>
+                                        <p className="font-semibold text-slate-800">{user.name}</p>
+                                        <p className="text-sm text-slate-500 font-mono">{user.employeeId}</p>
+                                    </div>
+                                </div>
                                 <p className={`text-sm font-semibold px-2 py-1 rounded-full w-fit col-span-1 ${user.role === 'admin' ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-800'}`}>{t(`${user.role}Role`)}</p>
                                 <div className="flex gap-2 justify-end col-span-2">
                                     <button onClick={() => onViewLog(user)} className="bg-slate-500 hover:bg-slate-600 text-white text-sm py-1 px-3 rounded flex items-center gap-1.5 transition-colors">{t('viewLog')}</button>
@@ -1469,7 +1517,16 @@ const EmployeeStatusCard: React.FC<{
   return (
     <div onClick={() => onSelectUser(user)} className="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-lg hover:border-sky-400 transition-all cursor-pointer hover:-translate-y-1">
       <div className="flex justify-between items-start">
-        <h4 className="font-bold text-slate-800">{user.name}</h4>
+        <div className="flex items-center gap-3">
+            {user.profilePictureUrl ? (
+                <img src={user.profilePictureUrl} alt={user.name} className="h-10 w-10 rounded-full object-cover" />
+            ) : (
+                <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                    <UserIcon className="h-6 w-6 text-slate-400" />
+                </div>
+            )}
+            <h4 className="font-bold text-slate-800">{user.name}</h4>
+        </div>
         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColor}`}>{statusText}</span>
       </div>
       <div className="mt-4 space-y-2 text-sm text-slate-600">
@@ -1710,7 +1767,8 @@ const CorrectionApprovalNotification: React.FC<{
   t: (key: string, options?: { [key: string]: string | number }) => any;
 }> = ({ allIncidents, onApprove, t }) => {
   const pendingCorrections = useMemo(() => {
-    return Object.values(allIncidents).filter(inc => inc.status === 'pending_approval');
+    // FIX: Add explicit type for 'inc' to resolve 'property does not exist on type unknown' error.
+    return Object.values(allIncidents).filter((inc: WorkIncident) => inc.status === 'pending_approval');
   }, [allIncidents]);
 
   if (pendingCorrections.length === 0) {
@@ -1766,61 +1824,63 @@ interface WeatherData {
   }[];
 }
 
-// Mock API call
-const fetchMockWeather = async (lat: number, lon: number): Promise<WeatherData> => {
-  await new Promise(res => setTimeout(res, 1000)); // Simulate API delay
-  
-  const seed = Math.abs(Math.floor(lat) + Math.floor(lon));
-  const isTropical = lat > -23.5 && lat < 23.5;
-  const weatherTypes: ('Clear' | 'Clouds' | 'Rain' | 'Snow')[] = isTropical 
-    ? ['Clear', 'Clouds', 'Rain'] 
-    : ['Clear', 'Clouds', 'Rain', 'Snow'];
+const wmoDescriptions: { [key: number]: string } = {
+    0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Depositing rime fog',
+    51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle', 56: 'Light freezing drizzle', 57: 'Dense freezing drizzle',
+    61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain', 66: 'Light freezing rain', 67: 'Heavy freezing rain',
+    71: 'Slight snow fall', 73: 'Moderate snow fall', 75: 'Heavy snow fall', 77: 'Snow grains',
+    80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+    85: 'Slight snow showers', 86: 'Heavy snow showers',
+    95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
+};
 
-  const now = new Date();
-  const currentMain = weatherTypes[(seed + now.getHours()) % weatherTypes.length];
-  const baseTemp = isTropical ? 28 : 15;
-  const currentTemp = baseTemp + ((seed % 10) - 5) + Math.sin(now.getHours() * Math.PI / 12) * 5;
-  
-  const current = {
-    temp: Math.round(currentTemp),
-    feels_like: Math.round(currentTemp - (seed % 3)),
-    humidity: 60 + (seed % 20),
-    wind_speed: 5 + (seed % 10),
-    main: currentMain,
-    description: {
-      'Clear': 'clear sky',
-      'Clouds': 'few clouds',
-      'Rain': 'light rain',
-      'Snow': 'light snow'
-    }[currentMain],
-  };
+const mapWmoCodeToWeather = (code: number): { main: 'Clear' | 'Clouds' | 'Rain' | 'Snow', description: string } => {
+    const description = wmoDescriptions[code] || 'Unknown weather';
+    let main: 'Clear' | 'Clouds' | 'Rain' | 'Snow';
 
-  const hourly: WeatherData['hourly'] = [];
-  for (let i = 0; i < 24; i++) {
-    const hourDate = new Date();
-    hourDate.setHours(now.getHours() + i + 1);
-    const hourTemp = baseTemp + ((seed % 10) - 5) + Math.sin(hourDate.getHours() * Math.PI / 12) * 5;
-    hourly.push({
-      date: hourDate,
-      temp: Math.round(hourTemp + (seed % (i + 1) % 3 - 1)),
-      main: weatherTypes[(seed + i) % weatherTypes.length],
-    });
-  }
-  
-  const daily: WeatherData['daily'] = [];
-  for (let i = 0; i < 7; i++) {
-    const dayDate = new Date();
-    dayDate.setDate(now.getDate() + i);
-    const maxTemp = baseTemp + 3 + ((seed + i) % 7) - 3;
-    daily.push({
-      date: dayDate,
-      temp_max: maxTemp,
-      temp_min: maxTemp - (5 + (seed % 4)),
-      main: weatherTypes[(seed + i * 2) % weatherTypes.length],
-    });
-  }
+    if (code === 0) main = 'Clear';
+    else if (code >= 1 && code <= 3) main = 'Clouds';
+    else if (code === 45 || code === 48) main = 'Clouds';
+    else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || (code >= 95 && code <= 99)) main = 'Rain';
+    else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) main = 'Snow';
+    else main = 'Clear';
 
-  return { current, hourly, daily };
+    return { main, description };
+};
+
+
+const fetchRealWeather = async (lat: number, lon: number): Promise<WeatherData> => {
+    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+        throw new Error('Failed to fetch weather data');
+    }
+    const data = await response.json();
+
+    const currentWeatherData = mapWmoCodeToWeather(data.current.weather_code);
+    const current = {
+        temp: Math.round(data.current.temperature_2m),
+        feels_like: Math.round(data.current.apparent_temperature),
+        humidity: data.current.relative_humidity_2m,
+        wind_speed: data.current.wind_speed_10m,
+        main: currentWeatherData.main,
+        description: currentWeatherData.description,
+    };
+
+    const hourly = data.hourly.time.map((time: string, index: number) => ({
+        date: new Date(time),
+        temp: Math.round(data.hourly.temperature_2m[index]),
+        main: mapWmoCodeToWeather(data.hourly.weather_code[index]).main,
+    })).slice(0, 24);
+
+    const daily = data.daily.time.map((time: string, index: number) => ({
+        date: new Date(time),
+        temp_max: Math.round(data.daily.temperature_2m_max[index]),
+        temp_min: Math.round(data.daily.temperature_2m_min[index]),
+        main: mapWmoCodeToWeather(data.daily.weather_code[index]).main,
+    }));
+
+    return { current, hourly, daily };
 };
 
 const WeatherBackground: React.FC<{ weatherCondition?: WeatherData['current']['main'] }> = ({ weatherCondition }) => {
@@ -2113,8 +2173,8 @@ const App: React.FC = () => {
             
             // Default data if nothing in localStorage
             return [
-              { name: "Admin", employeeId: "ADMIN", password: "admin", role: "admin", creationDate: "2023-01-15T10:00:00Z" },
-              { name: "Test User", employeeId: "USER001", password: "password", role: "user", creationDate: "2024-03-01T10:00:00Z" }
+              { name: "Admin", employeeId: "ADMIN", password: "admin", role: "admin", creationDate: "2023-01-15T10:00:00Z", profilePictureUrl: `https://i.pravatar.cc/150?u=ADMIN` },
+              { name: "Test User", employeeId: "USER001", password: "password", role: "user", creationDate: "2024-03-01T10:00:00Z", profilePictureUrl: `https://i.pravatar.cc/150?u=USER001` }
             ];
         } catch (error) {
             console.error(error);
@@ -2217,7 +2277,7 @@ const App: React.FC = () => {
             navigator.geolocation.getCurrentPosition(
               async (position) => {
                 try {
-                  const weatherData = await fetchMockWeather(position.coords.latitude, position.coords.longitude);
+                  const weatherData = await fetchRealWeather(position.coords.latitude, position.coords.longitude);
                   setWeather(weatherData);
                   setWeatherError(null);
                 } catch (e) {
@@ -2402,6 +2462,14 @@ const App: React.FC = () => {
     
     const handleBackToDashboard = () => setImpersonatedUser(null);
     
+    const handleProfileChange = (profile: UserProfile) => {
+        const updatedUsers = allUsers.map(u => u.employeeId === profile.employeeId ? profile : u)
+        setAllUsers(updatedUsers);
+        if (currentUser?.employeeId === profile.employeeId) {
+            setCurrentUser(profile);
+        }
+    }
+    
     // --- Derived State ---
     const userToView = impersonatedUser || currentUser;
     const punchesForUserToView = userToView ? (allUsersPunches[userToView.employeeId] || {}) : {};
@@ -2484,7 +2552,8 @@ const App: React.FC = () => {
         }
         
         const userIncidents = Object.values(allIncidents).filter(
-            inc => inc.employeeId === currentUser.employeeId && inc.status === 'pending_correction'
+            // FIX: Add explicit type for 'inc' to resolve 'property does not exist on type unknown' error.
+            (inc: WorkIncident) => inc.employeeId === currentUser.employeeId && inc.status === 'pending_correction'
         );
         
         return (
@@ -2512,7 +2581,7 @@ const App: React.FC = () => {
                         <Reminder allPunches={punchesForUserToView} t={t} />
                     </div>
                     <div>
-                         <UserProfileComponent profile={userToView!} onProfileChange={(p) => setAllUsers(allUsers.map(u => u.employeeId === p.employeeId ? p : u))} t={t} isReadOnly={!!impersonatedUser || currentUser.employeeId !== userToView?.employeeId} />
+                         <UserProfileComponent profile={userToView!} onProfileChange={handleProfileChange} t={t} isReadOnly={!!impersonatedUser || currentUser.employeeId !== userToView?.employeeId} />
                          {!impersonatedUser && <WorkAnniversaryCard user={userToView!} t={t} />}
                          {!impersonatedUser && <WeatherWidget weather={weather} isLoading={isLoadingWeather} error={weatherError} t={t} language={language} />}
                          <WorkStatistics allPunches={punchesForUserToView} leavesByDate={leavesByDate} currentMonth={currentMonth} t={t}/>
@@ -2536,8 +2605,19 @@ const App: React.FC = () => {
         <div className="p-4 md:p-8 font-sans">
             <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 max-w-7xl mx-auto overflow-hidden relative">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div className="flex items-center gap-2">
-                         <button onClick={handleLogout} className="flex items-center gap-2 text-slate-600 hover:text-sky-600 font-semibold p-2 rounded-md transition-colors"><LogoutIcon className="h-5 w-5"/> {t('logoutButton')}</button>
+                    <div className="flex items-center gap-4">
+                        {currentUser.profilePictureUrl ? (
+                            <img src={currentUser.profilePictureUrl} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
+                        ) : (
+                            <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center">
+                                <UserIcon className="h-6 w-6 text-slate-500" />
+                            </div>
+                        )}
+                        <span className="font-semibold text-slate-700 hidden sm:inline">{currentUser.name}</span>
+                        <button onClick={handleLogout} className="flex items-center gap-2 text-slate-600 hover:text-sky-600 font-semibold p-2 rounded-md transition-colors">
+                            <LogoutIcon className="h-5 w-5"/> 
+                            <span className="hidden md:inline">{t('logoutButton')}</span>
+                        </button>
                     </div>
                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 self-end md:self-center">
                         {currentUser.role === 'admin' && (
